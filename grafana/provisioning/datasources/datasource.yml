@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: SmartGrid-Postgres
+    type: postgres
+    uid: smartgrid_pg
+    url: postgres:5432
+    user: grid_admin
+    secureJsonData:
+      password: grid_password
+    jsonData:
+      database: smartgrid
+      sslmode: 'disable'
+      postgresVersion: 1600
+      timescaledb: false
+    isDefault: true
+    editable: true

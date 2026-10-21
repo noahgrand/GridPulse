@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: grid_postgres
+    environment:
+      POSTGRES_USER: grid_admin
+      POSTGRES_PASSWORD: grid_password
+      POSTGRES_DB: smartgrid
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grid_admin -d smartgrid"]
+      interval: 4s
+      timeout: 4s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: grid_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: grid_broker
+      RABBITMQ_DEFAULT_PASS: broker_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grid_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
+      - GF_USERS_DEFAULT_THEME=dark
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web_and_sim:
+    build: ./app
+    container_name: grid_control_plane
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://grid_admin:grid_password@postgres:5432/smartgrid
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: grid_broker
+      RABBITMQ_PASS: broker_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  pgdata:

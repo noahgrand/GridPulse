@@ -1,0 +1,100 @@
+{
+  "uid": "gridpulse-dso",
+  "title": "GridPulse City Telemetry",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "2s",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "City Power Balance (Gross Load vs. Solar PV vs. Net Substation Flow)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatt",
+          "custom": { "fillOpacity": 15, "lineWidth": 2 }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket AS \"time\", total_demand_kw AS \"Gross Demand (kW)\", total_solar_kw AS \"Solar Generation (kW)\", city_net_import_kw AS \"Net Substation Flow (kW)\" FROM city_grid_summary WHERE $__timeFilter(time_bucket) ORDER BY 1;",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Low-Voltage Feeder Envelope (Min / Mean / Max Voltage)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "custom": { "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket AS \"time\", max_voltage_v AS \"Max Feeder V\", avg_voltage_v AS \"City Mean V\", min_voltage_v AS \"Min Feeder V\" FROM city_grid_summary WHERE $__timeFilter(time_bucket) ORDER BY 1;",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Grid Frequency (Hz) & Storage Dispatch (kW)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket AS \"time\", grid_frequency_hz AS \"Frequency (Hz)\" FROM city_grid_summary WHERE $__timeFilter(time_bucket) ORDER BY 1;",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Dynamic Spot Tariff (EUR / MWh)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "custom": { "fillOpacity": 20, "lineWidth": 2 }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "smartgrid_pg" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket AS \"time\", spot_price_eur_mwh AS \"Spot Price (EUR/MWh)\" FROM city_grid_summary WHERE $__timeFilter(time_bucket) ORDER BY 1;",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

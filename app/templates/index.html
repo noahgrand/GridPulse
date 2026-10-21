@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>GridPulse | DSO Bidirectional Smart Grid Control Plane</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0b0f19; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
+    .card { background-color: #111827; border: 1px solid #1f2937; border-radius: 0.75rem; }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+  <header class="flex flex-wrap justify-between items-center pb-5 mb-6 border-b border-gray-800">
+    <div>
+      <div class="flex items-center gap-3">
+        <span class="h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></span>
+        <h1 class="text-2xl font-bold tracking-tight text-white">GridPulse DSO — Bidirectional Energy Control Center</h1>
+      </div>
+      <p class="text-sm text-gray-400 mt-1">Real-Time Prosumer Telemetry • RabbitMQ AMQP Ingestion • PostgreSQL & Grafana Analytics</p>
+    </div>
+    <div class="flex items-center gap-4 mt-3 sm:mt-0">
+      <div class="px-4 py-2 rounded-lg bg-gray-900 border border-gray-700 text-sm">
+        Simulated Time: <span id="sim-clock" class="font-mono font-bold text-amber-400">13:00</span>
+      </div>
+      <div class="px-4 py-2 rounded-lg bg-indigo-950/60 border border-indigo-700 text-sm">
+        Active Scenario: <span id="active-scenario-badge" class="font-mono font-bold text-indigo-300">NORMAL_OPERATION</span>
+      </div>
+      <a href="http://localhost:15672" target="_blank" class="px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-200 transition">
+        RabbitMQ Broker ↗
+      </a>
+      <a href="http://localhost:3000/d/gridpulse-dso/gridpulse-city-telemetry" target="_blank" class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white transition">
+        Open Full Grafana ↗
+      </a>
+    </div>
+  </header>
+
+  <section class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+    <div class="card p-4">
+      <p class="text-xs text-gray-400 uppercase">City Gross Demand</p>
+      <p id="kpi-demand" class="text-2xl font-bold text-rose-400 mt-1">-- kW</p>
+      <p class="text-xs text-gray-500 mt-1">Households + EV Chargers</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-gray-400 uppercase">Rooftop Solar Feed-In</p>
+      <p id="kpi-solar" class="text-2xl font-bold text-amber-400 mt-1">-- kW</p>
+      <p class="text-xs text-gray-500 mt-1">Distributed PV Generation</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-gray-400 uppercase">Net Substation Flow</p>
+      <p id="kpi-net" class="text-2xl font-bold text-emerald-400 mt-1">-- kW</p>
+      <p id="kpi-net-dir" class="text-xs text-gray-500 mt-1">Balancing City Grid</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-gray-400 uppercase">Feeder Voltage (Avg / Max)</p>
+      <p id="kpi-voltage" class="text-2xl font-bold text-sky-400 mt-1">-- V</p>
+      <p class="text-xs text-gray-500 mt-1">Nominal 230V ±10%</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-gray-400 uppercase">Grid Frequency</p>
+      <p id="kpi-freq" class="text-2xl font-bold text-purple-400 mt-1">-- Hz</p>
+      <p class="text-xs text-gray-500 mt-1">Target 50.000 Hz</p>
+    </div>
+    <div class="card p-4">
+      <p class="text-xs text-gray-400 uppercase">Dynamic Spot Price</p>
+      <p id="kpi-price" class="text-2xl font-bold text-teal-400 mt-1">-- €/MWh</p>
+      <p class="text-xs text-gray-500 mt-1">Real-time Prosumer Tariff</p>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="lg:col-span-4 space-y-6">
+      <div class="card p-5">
+        <h2 class="text-base font-semibold text-white mb-1">1. One-Click Scenario Generator</h2>
+        <p class="text-xs text-gray-400 mb-4">Inject realistic city-wide grid conditions into the RabbitMQ telemetry stream.</p>
+        <div class="space-y-2.5">
+          <button onclick="setScenario('NORMAL_OPERATION')" class="w-full text-left p-3 rounded-lg bg-gray-800/80 hover:bg-gray-800 border border-gray-700 transition">
+            <div class="font-semibold text-sm text-emerald-400">Normal Balanced Prosumer Day</div>
+            <div class="text-xs text-gray-400">Moderate solar export, nominal 230V feeder voltage.</div>
+          </button>
+          <button onclick="setScenario('SOLAR_PEAK_VOLTAGE_SWELL')" class="w-full text-left p-3 rounded-lg bg-gray-800/80 hover:bg-gray-800 border border-amber-700/60 transition">
+            <div class="font-semibold text-sm text-amber-400">Midday Solar Peak & Voltage Swell</div>
+            <div class="text-xs text-gray-400">Massive PV injection drives negative net load, pushing feeder voltage above 246V.</div>
+          </button>
+          <button onclick="setScenario('EV_COMMUTER_SURGE')" class="w-full text-left p-3 rounded-lg bg-gray-800/80 hover:bg-gray-800 border border-rose-700/60 transition">
+            <div class="font-semibold text-sm text-rose-400">Evening EV Commuter Overload</div>
+            <div class="text-xs text-gray-400">Simultaneous 11–22kW EV charging at dusk causes voltage sag and frequency drop.</div>
+          </button>
+          <button onclick="setScenario('CLOUD_TRANSIENT_DROP')" class="w-full text-left p-3 rounded-lg bg-gray-800/80 hover:bg-gray-800 border border-sky-700/60 transition">
+            <div class="font-semibold text-sm text-sky-400">Sudden Storm Cloud Front</div>
+            <div class="text-xs text-gray-400">92% cloud cover collapses PV generation; residential batteries discharge to buffer grid.</div>
+          </button>
+          <button onclick="setScenario('SMART_GRID_DEMAND_RESPONSE')" class="w-full text-left p-3 rounded-lg bg-gray-800/80 hover:bg-gray-800 border border-indigo-600/60 transition">
+            <div class="font-semibold text-sm text-indigo-400">Virtual Power Plant (VPP) Stabilization</div>
+            <div class="text-xs text-gray-400">DSO curtails EV wallboxes to 30% and dispatches home batteries to shave peak load.</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <h2 class="text-base font-semibold text-white mb-3">2. Live Physics Sandbox Overrides</h2>
+        <div class="space-y-4 text-xs">
+          <div>
+            <div class="flex justify-between mb-1">
+              <span>Cloud Cover (%)</span>
+              <span id="val-cloud" class="font-mono text-amber-400">15%</span>
+            </div>
+            <input id="inp-cloud" type="range" min="0" max="100" value="15" class="w-full" onchange="pushCustomParams()">
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span>Solar Irradiance Multiplier</span>
+              <span id="val-solar" class="font-mono text-amber-400">1.0x</span>
+            </div>
+            <input id="inp-solar" type="range" min="0" max="1.6" step="0.05" value="1.0" class="w-full" onchange="pushCustomParams()">
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span>EV Charging Surge Factor</span>
+              <span id="val-ev" class="font-mono text-rose-400">1.0x</span>
+            </div>
+            <input id="inp-ev" type="range" min="0" max="5.0" step="0.2" value="1.0" class="w-full" onchange="pushCustomParams()">
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span>Simulated Hour of Day (0–24h)</span>
+              <span id="val-hour" class="font-mono text-sky-400">13.0h</span>
+            </div>
+            <input id="inp-hour" type="range" min="0" max="23.9" step="0.25" value="13.0" class="w-full" onchange="pushCustomParams()">
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+            <span>Battery Dispatch Policy</span>
+            <select id="inp-bat" class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white" onchange="pushCustomParams()">
+              <option value="AUTO_SELF_CONSUME">Auto Self-Consumption</option>
+              <option value="FORCE_DISCHARGE_TO_GRID">VPP Force Export to Grid</option>
+              <option value="FORCE_CHARGE">Force Grid Charging</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-between">
+            <span>Demand Response (Throttle EVs)</span>
+            <input id="inp-dr" type="checkbox" class="h-4 w-4" onchange="pushCustomParams()">
+          </div>
+          <div class="flex items-center justify-between">
+            <span>Auto-Advance Time Clock</span>
+            <input id="inp-autoclk" type="checkbox" checked class="h-4 w-4" onchange="pushCustomParams()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-8 space-y-6">
+      <div class="card p-5">
+        <h2 class="text-base font-semibold text-white mb-3">District Substation Telemetry (Live 1.5s RabbitMQ Feed)</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="text-xs text-gray-400 uppercase border-b border-gray-800">
+              <tr>
+                <th class="py-2">City District</th>
+                <th class="py-2">Gross Load (kW)</th>
+                <th class="py-2">PV Generation (kW)</th>
+                <th class="py-2">Net Feeder Flow (kW)</th>
+                <th class="py-2">Avg Voltage (V)</th>
+                <th class="py-2">Fleet Battery SoC</th>
+              </tr>
+            </thead>
+            <tbody id="district-tbody" class="divide-y divide-gray-800 font-mono text-xs">
+              <tr><td colspan="6" class="py-4 text-center text-gray-500">Waiting for RabbitMQ stream...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <h2 class="text-base font-semibold text-white">Embedded Grafana Observability Plane</h2>
+            <p class="text-xs text-gray-400">Auto-provisioned PostgreSQL time-series dashboard refreshing every 2 seconds.</p>
+          </div>
+          <span class="text-xs font-mono text-emerald-400">UID: gridpulse-dso</span>
+        </div>
+        <iframe id="grafana-frame"
+                src="http://localhost:3000/d/gridpulse-dso/gridpulse-city-telemetry?orgId=1&refresh=2s&kiosk"
+                class="w-full h-[460px] rounded-lg border border-gray-800 bg-gray-950"></iframe>
+      </div>
+
+      <div class="card p-5">
+        <h2 class="text-base font-semibold text-white mb-2">SCADA Scenario & Protection Log</h2>
+        <div id="event-log" class="space-y-2 text-xs max-h-36 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function setScenario(key) {
+      await fetch('/api/scenario', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scenario_key: key})
+      });
+      fetchStatus(true);
+    }
+
+    async function pushCustomParams() {
+      const payload = {
+        cloud_cover_pct: parseFloat(document.getElementById('inp-cloud').value),
+        solar_irradiance_factor: parseFloat(document.getElementById('inp-solar').value),
+        ev_surge_multiplier: parseFloat(document.getElementById('inp-ev').value),
+        simulated_hour: parseFloat(document.getElementById('inp-hour').value),
+        battery_mode: document.getElementById('inp-bat').value,
+        demand_response_curtailment: document.getElementById('inp-dr').checked,
+        auto_advance_time: document.getElementById('inp-autoclk').checked
+      };
+      await fetch('/api/custom-params', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      fetchStatus(false);
+    }
+
+    async function fetchStatus(syncSliders = false) {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      const s = data.sim_state;
+      const m = data.metrics || {};
+
+      const hrs = Math.floor(s.simulated_hour);
+      const mins = Math.floor((s.simulated_hour - hrs) * 60);
+      document.getElementById('sim-clock').innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}`;
+      document.getElementById('active-scenario-badge').innerText = s.scenario;
+
+      document.getElementById('val-cloud').innerText = `${Math.round(s.cloud_cover_pct)}%`;
+      document.getElementById('val-solar').innerText = `${s.solar_irradiance_factor.toFixed(2)}x`;
+      document.getElementById('val-ev').innerText = `${s.ev_surge_multiplier.toFixed(1)}x`;
+      document.getElementById('val-hour').innerText = `${s.simulated_hour.toFixed(1)}h`;
+
+      if (syncSliders) {
+        document.getElementById('inp-cloud').value = s.cloud_cover_pct;
+        document.getElementById('inp-solar').value = s.solar_irradiance_factor;
+        document.getElementById('inp-ev').value = s.ev_surge_multiplier;
+        document.getElementById('inp-hour').value = s.simulated_hour;
+        document.getElementById('inp-bat').value = s.battery_mode;
+        document.getElementById('inp-dr').checked = s.demand_response_curtailment;
+      }
+
+      if (m.total_demand_kw !== undefined) {
+        document.getElementById('kpi-demand').innerText = `${Number(m.total_demand_kw).toFixed(1)} kW`;
+        document.getElementById('kpi-solar').innerText = `${Number(m.total_solar_kw).toFixed(1)} kW`;
+        const net = Number(m.city_net_import_kw);
+        document.getElementById('kpi-net').innerText = `${net.toFixed(1)} kW`;
+        document.getElementById('kpi-net-dir').innerText = net < 0 ? "EXPORTING SURPLUS TO HV GRID" : "IMPORTING FROM HV GRID";
+        document.getElementById('kpi-voltage').innerText = `${Number(m.avg_voltage_v).toFixed(1)}V / ${Number(m.max_voltage_v).toFixed(1)}V`;
+        document.getElementById('kpi-freq').innerText = `${Number(m.grid_frequency_hz).toFixed(3)} Hz`;
+        document.getElementById('kpi-price').innerText = `${Number(m.spot_price_eur_mwh).toFixed(1)} €/MWh`;
+      }
+
+      const tbody = document.getElementById('district-tbody');
+      if (data.districts && data.districts.length > 0) {
+        tbody.innerHTML = data.districts.map(d => {
+          const netColor = d.net_kw < 0 ? 'text-emerald-400' : 'text-rose-400';
+          const netLabel = d.net_kw < 0 ? `${d.net_kw} kW (Export)` : `+${d.net_kw} kW (Import)`;
+          return `<tr class="hover:bg-gray-800/40">
+            <td class="py-2.5 font-sans font-medium text-white">${d.district}</td>
+            <td class="py-2.5 text-rose-300">${d.demand_kw} kW</td>
+            <td class="py-2.5 text-amber-300">${d.solar_kw} kW</td>
+            <td class="py-2.5 font-bold ${netColor}">${netLabel}</td>
+            <td class="py-2.5 text-sky-300">${d.avg_v} V</td>
+            <td class="py-2.5 text-teal-300">${d.avg_soc}%</td>
+          </tr>`;
+        }).join('');
+      }
+
+      const evLog = document.getElementById('event-log');
+      if (data.events) {
+        evLog.innerHTML = data.events.map(e => `
+          <div class="p-2 rounded bg-gray-900 border border-gray-800 flex justify-between">
+            <div><span class="font-mono font-bold text-indigo-400">[${e.scenario_name}]</span> ${e.description}</div>
+            <span class="text-gray-500 font-mono ml-2">${new Date(e.triggered_at).toLocaleTimeString()}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    fetchStatus(true);
+    setInterval(() => fetchStatus(false), 1500);
+  </script>
+</body>
+</html>

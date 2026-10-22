@@ -198,7 +198,7 @@ gridpulse-prototype/
 Use `manage.ps1` (Windows) to manage the environment:
 
 | Action | PowerShell | Description |
-| :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- |
 | **Start** | `.\manage.ps1 up` | Generates missing files, builds containers, and starts the stack |
 | **Stop** | `.\manage.ps1 down` | Stops and removes running containers (preserves database volume) |
 | **Clean Reset** | `.\manage.ps1 reset` | Wipes database volumes, regenerates files from `bootstrap.py`, and rebuilds |

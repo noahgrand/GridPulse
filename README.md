@@ -82,7 +82,6 @@ Ensure the following software is installed on your system before building:
 | **Modern Web Browser** | Chrome / Edge / Firefox | Renders the SCADA web portal and embedded Grafana iframes | — |
 
 * **Windows Users**: Install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) (with the WSL 2 backend enabled) and **PowerShell 5.1+ / 7+**.
-* **Linux / macOS Users**: Install Docker Engine + `docker-compose-plugin` (or Docker Desktop for Mac), `bash`, and `curl` (used by `manage.sh` to poll API readiness).
 
 ### 2. Required Free TCP Ports
 Ensure no local services (such as a local Postgres instance or another web server) are occupying these ports on `localhost`:
@@ -102,14 +101,8 @@ Ensure no local services (such as a local Postgres instance or another web serve
 .\manage.ps1 up
 ```
 
-### Option B: Automated Launch (Linux / macOS / WSL Bash)
-```bash
-# 1. Make the management script executable and bring up the stack
-chmod +x manage.sh
-./manage.sh up
-```
 
-### Option C: Manual Build (Using Docker Compose Directly)
+### Option B: Manual Build (Using Docker Compose Directly)
 If you prefer running commands manually without the wrapper scripts:
 ```bash
 # 1. Generate the directory structure and configuration files
@@ -179,7 +172,6 @@ gridpulse-prototype/
 ├── README.md                 # Project documentation & setup guide
 ├── bootstrap.py              # Zero-dependency project file generator
 ├── manage.ps1                # Windows PowerShell build & lifecycle script
-├── manage.sh                 # Linux/macOS/WSL Bash build & lifecycle script
 ├── docker-compose.yml        # Multi-container orchestration definition
 ├── db/
 │   └── init.sql              # PostgreSQL schema, indexes, and aggregation views
@@ -203,15 +195,15 @@ gridpulse-prototype/
 
 ## 🔄 Lifecycle & Maintenance Commands
 
-Use `manage.ps1` (Windows) or `./manage.sh` (Linux/macOS/WSL) to manage the environment:
+Use `manage.ps1` (Windows) to manage the environment:
 
-| Action | PowerShell | Bash | Description |
+| Action | PowerShell | Description |
 | :--- | :--- | :--- | :--- |
-| **Start** | `.\manage.ps1 up` | `./manage.sh up` | Generates missing files, builds containers, and starts the stack |
-| **Stop** | `.\manage.ps1 down` | `./manage.sh down` | Stops and removes running containers (preserves database volume) |
-| **Clean Reset** | `.\manage.ps1 reset` | `./manage.sh reset` | Wipes database volumes, regenerates files from `bootstrap.py`, and rebuilds |
-| **View Logs** | `.\manage.ps1 logs` | `./manage.sh logs` | Streams live logs from the Python simulator and FastAPI backend |
-| **Status** | `.\manage.ps1 status` | `./manage.sh status` | Shows container health and port mappings |
+| **Start** | `.\manage.ps1 up` | Generates missing files, builds containers, and starts the stack |
+| **Stop** | `.\manage.ps1 down` | Stops and removes running containers (preserves database volume) |
+| **Clean Reset** | `.\manage.ps1 reset` | Wipes database volumes, regenerates files from `bootstrap.py`, and rebuilds |
+| **View Logs** | `.\manage.ps1 logs` | Streams live logs from the Python simulator and FastAPI backend |
+| **Status** | `.\manage.ps1 status` | Shows container health and port mappings |
 
 ---
 
@@ -220,6 +212,6 @@ Use `manage.ps1` (Windows) or `./manage.sh` (Linux/macOS/WSL) to manage the envi
 * **Embedded Grafana iframe shows a login screen or refuses to connect**:
   * Ensure port `3000` is accessible on `localhost` and that your browser is not blocking third-party cookies/iframes on local loopback addresses. The `docker-compose.yml` sets `GF_SECURITY_ALLOW_EMBEDDING=true` and `GF_AUTH_ANONYMOUS_ENABLED=true` automatically.
 * **Port Conflict (`Bind for 0.0.0.0:5432 failed: port is already allocated`)**:
-  * You likely have a local PostgreSQL service running on your host machine. Either stop the local PostgreSQL service (`Stop-Service postgresql*` on Windows / `sudo systemctl stop postgresql` on Linux) or change the host port mapping in `docker-compose.yml` from `"5432:5432"` to `"5433:5432"`.
+  * You likely have a local PostgreSQL service running on your host machine. Either stop the local PostgreSQL service (`Stop-Service postgresql*` on Windows ) or change the host port mapping in `docker-compose.yml` from `"5432:5432"` to `"5433:5432"`.
 * **Resetting after modifying `bootstrap.py`**:
-  * If you edit code inside `bootstrap.py`, run `.\manage.ps1 reset` (or `./manage.sh reset`) so the Postgres volume is recreated cleanly alongside the updated source files.
+  * If you edit code inside `bootstrap.py`, run `.\manage.ps1 reset` so the Postgres volume is recreated cleanly alongside the updated source files.
